@@ -131,7 +131,7 @@ void serve_static(int fd, char *filename, int filesize) {
     rio_readn(srcfd, srcp, filesize);
     Close(srcfd);
     Rio_writen(fd, srcp, filesize);
-    Munmap(srcp, filesize);
+    free(srcp);
 }
 
 void get_filetype(char *filename, char *filetype) {
