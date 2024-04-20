@@ -128,6 +128,7 @@ void serve_static(int fd, char *filename, int filesize) {
 
     srcfd = Open(filename, O_RDONLY, 0);
     srcp = (char *) malloc(filesize);
+    rio_readn(srcfd, srcp, filesize);
     Close(srcfd);
     Rio_writen(fd, srcp, filesize);
     Munmap(srcp, filesize);
