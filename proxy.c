@@ -19,62 +19,26 @@ static const char *user_agent_hdr =
 
 // 프록시 서버의 핵심 동작을 담당하는 함수
 void doit(int fd) {
-    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
-    rio_t rio_client, rio_server;
-
-    // 클라이언트로부터 HTTP 요청을 읽어들임
-    Rio_readinitb(&rio_client, fd);
-    Rio_readlineb(&rio_client, buf, MAXLINE);
-    sscanf(buf, "%s %s %s", method, uri, version);
-
-    // HTTP 요청 헤더를 읽어들임
-    read_requesthdrs(&rio_client);
-
-    // 메소드가 GET이 아니면 오류를 발생시킴
-    if (strcasecmp(method, "GET")) {
-        clienterror(fd, method, "501", "Not Implemented", "Proxy does not implement this method");
-        return;
-    }
-
-    // 서버 호스트명과 포트를 추출
-    char hostname[MAXLINE], pathname[MAXLINE], port[MAXLINE];
-    parse_uri(uri, hostname, pathname, port);
-
-    // 서버로 연결
-    int serverfd = Open_clientfd(hostname, port);
-    if (serverfd < 0) {
-        clienterror(fd, hostname, "404", "Not found", "Proxy couldn't connect to the server");
-        return;
-    }
-
-    // 서버에 HTTP 요청 전송
-    Rio_readinitb(&rio_server, serverfd);
-    Rio_writen(serverfd, buf, strlen(buf));
-
-    // 요청 헤더와 본문을 서버로 전송
-    while (Rio_readlineb(&rio_client, buf, MAXLINE) > 0) {
-        if (strcmp(buf, "\r\n") == 0) break; // 헤더 끝 확인
-        Rio_writen(serverfd, buf, strlen(buf));
-    }
-
-    // 서버로부터 응답을 받아 클라이언트에 전송
-    while (Rio_readlineb(&rio_server, buf, MAXLINE) > 0) {
-        Rio_writen(fd, buf, strlen(buf));
-    }
-
-    // 연결 종료
-    Close(serverfd);
+    
 }
 
 // 주어진 URI를 호스트명, 포트, 경로로 파싱하는 함수
-void parse_uri(char *uri, char *hostname, char *pathname, char *port) {
-    char *ptr;
-    ptr = strstr(uri, "://");
-    if (ptr != NULL) { // "://" 문자열을 찾았을 경우
-        sscanf(ptr + 3, "%[^:/]:%[^/]%s", hostname, port, pathname); // 호스트명, 포트, 경로를 추출하여 변수에 저장
-    } else { // "://" 문자열을 찾지 못한 경우
-        sscanf(uri, "%[^:/]:%[^/]%s", hostname, port, pathname); // URI 전체를 호스트명, 포트, 경로로 간주하여 추출
+void parse_uri(char *uri, char *hostname, char *port, char *path) {
+    printf("---parse_uri: %s\n", uri);
+    char *hostname_ptr = strstr(uri, "//") != NULL ? strstr(uri, "//") + 2 : uri + 1;
+    char *port_ptr = strstr(hostname_ptr, ":");
+    char *path_ptr = strstr(hostname_ptr, "/");
+    if (path_ptr > 0) {
+        *path_ptr = '\0';
+        strcpy(path, path_ptr+1);
     }
+    if (port_ptr > 0) {
+        *port_ptr = '\0';
+        strcpy(port, port_ptr + 1);
+    }
+
+    strcpy(hostname, hostname_ptr);
+    printf("---parse_uri host: %s, port: %s, path: %s\n", hostname, port, path);
 }
 
 // 클라이언트에게 에러 메시지를 전송하는 함수
@@ -103,7 +67,7 @@ void read_requesthdrs(rio_t *rp) {
 
     // HTTP 헤더를 읽어들임
     Rio_readlineb(rp, buf, MAXLINE);
-    while(strcmp(buf, "\r\n")) { // 빈 줄이 나올 때까지 반복
+    while (strcmp(buf, "\r\n")) { // 빈 줄이 나올 때까지 반복
         Rio_readlineb(rp, buf, MAXLINE);
         printf("%s", buf); // 헤더를 화면에 출력하거나 다른 작업을 수행할 수 있음
     }
