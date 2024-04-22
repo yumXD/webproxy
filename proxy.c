@@ -72,9 +72,27 @@ void parse_uri(char *uri, char *hostname, char *pathname, char *port) {
     }
 }
 
+// 클라이언트에게 에러 메시지를 전송하는 함수
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) {
+    char buf[MAXLINE], body[MAXBUF];
 
+    // 에러 메시지 생성
+    sprintf(body, "<html><title>Proxy Error</title>"); // HTML 페이지의 시작 부분 작성
+    sprintf(body, "%s<body bgcolor=""ffffff"">\r\n", body); // 페이지 바탕색 설정
+    sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg); // 에러 번호와 짧은 메시지 추가
+    sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause); // 에러 원인 추가
+    sprintf(body, "%s<hr><em>The Proxy server</em>\r\n", body); // 서버 정보 추가
+
+    // HTTP 응답 전송
+    sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg); // HTTP 응답 라인 작성 (상태 코드와 메시지)
+    Rio_writen(fd, buf, strlen(buf)); // 클라이언트에게 전송
+    sprintf(buf, "Content-type: text/html\r\n"); // HTML 컨텐츠 타입 설정
+    Rio_writen(fd, buf, strlen(buf)); // 클라이언트에게 전송
+    sprintf(buf, "Content-length: %lu\r\n\r\n", strlen(body)); // HTML 본문의 길이 설정
+    Rio_writen(fd, buf, strlen(buf)); // 클라이언트에게 전송
+    Rio_writen(fd, body, strlen(body)); // HTML 본문을 클라이언트에게 전송
 }
+
 
 int main(int argc, char **argv) {
     int listenfd, connfd;
