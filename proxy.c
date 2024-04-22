@@ -61,8 +61,15 @@ void doit(int fd) {
     Close(serverfd);
 }
 
+// 주어진 URI를 호스트명, 포트, 경로로 파싱하는 함수
 void parse_uri(char *uri, char *hostname, char *pathname, char *port) {
-    
+    char *ptr;
+    ptr = strstr(uri, "://");
+    if (ptr != NULL) { // "://" 문자열을 찾았을 경우
+        sscanf(ptr + 3, "%[^:/]:%[^/]%s", hostname, port, pathname); // 호스트명, 포트, 경로를 추출하여 변수에 저장
+    } else { // "://" 문자열을 찾지 못한 경우
+        sscanf(uri, "%[^:/]:%[^/]%s", hostname, port, pathname); // URI 전체를 호스트명, 포트, 경로로 간주하여 추출
+    }
 }
 
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) {
