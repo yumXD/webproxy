@@ -6,7 +6,7 @@
 
 void doit(int fd);
 
-void parse_uri(char *uri, char *hostname, char *pathname, char *port);
+void parse_uri(char *uri, char *hostname, char *port, char *path);
 
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 
@@ -17,9 +17,55 @@ static const char *user_agent_hdr =
         "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 "
         "Firefox/10.0.3\r\n";
 
-// 프록시 서버의 핵심 동작을 담당하는 함수
-void doit(int fd) {
-    
+// 클라이언트로부터 요청을 받아들여 처리하고, 원격 서버에 전달하여 응답을 받아 클라이언트에게 다시 전송하는 함수
+void doit(int clientfd) {
+    int serverfd;
+    char request_buf[MAXLINE], response_buf[MAX_OBJECT_SIZE];
+    char method[MAXLINE], uri[MAXLINE], path[MAXLINE];
+    char hostname[MAXLINE], port[MAXLINE];
+    rio_t request_rio, response_rio;
+
+    /* 클라이언트의 요청 읽기 */
+    Rio_readinitb(&request_rio, clientfd); // 클라이언트 소켓 디스크립터를 리오 버퍼에 연결
+    Rio_readlineb(&request_rio, request_buf, MAXLINE); // 클라이언트로부터 요청 라인을 읽음
+    printf("Request header: %s\n", request_buf);
+    /* 요청 메소드, URI 읽기 */
+    sscanf(request_buf, "%s %s", method, uri);
+
+    /* URI 파싱하여 호스트명, 포트, 경로 추출 */
+    parse_uri(uri, hostname, port, path);
+
+    printf("uri: %s\n", uri); // 디버깅용 URI 출력
+
+    /* 새로운 요청 구성 */
+    sprintf(request_buf, "%s /%s %s\r\n", method, path, "HTTP/1.0");
+    printf("%s\n", request_buf);
+    sprintf(request_buf, "%sConnection: close\r\n", request_buf);
+    sprintf(request_buf, "%sProxy-Connection: close\r\n", request_buf);
+    sprintf(request_buf, "%s%s\r\n", request_buf, user_agent_hdr);
+
+    /* 요청 메소드가 GET 또는 HEAD가 아닌 경우 오류 응답 전송 */
+    if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD")) {
+        clienterror(clientfd, method, "501", "Not Implemented", "Proxy does not implement this method");
+        return;
+    }
+
+    /* 원격 서버에 클라이언트의 요청 전송 */
+    serverfd = Open_clientfd(hostname, port); // 서버로의 연결 생성
+    if (serverfd < 0) { // 연결 실패 시
+        clienterror(clientfd, hostname, "404", "Not found", "Proxy couldn't connect to the server");
+        return;
+    }
+
+    printf("%s\n", request_buf);
+    Rio_writen(serverfd, request_buf, strlen(request_buf)); // 서버에 요청 전송
+
+    /* 서버로부터 응답 받아 클라이언트에 전송 */
+    ssize_t n;
+    n = Rio_readn(serverfd, response_buf, MAX_OBJECT_SIZE); // 서버로부터 OBJECT_SIZE 만큼 응답을 읽음
+    Rio_writen(clientfd, response_buf, n); // 클라이언트에게 응답을 전송
+
+    Close(serverfd); // 서버 연결 종료
 }
 
 // 주어진 URI를 호스트명, 포트, 경로로 파싱하는 함수
@@ -30,7 +76,7 @@ void parse_uri(char *uri, char *hostname, char *port, char *path) {
     char *path_ptr = strstr(hostname_ptr, "/");
     if (path_ptr > 0) {
         *path_ptr = '\0';
-        strcpy(path, path_ptr+1);
+        strcpy(path, path_ptr + 1);
     }
     if (port_ptr > 0) {
         *port_ptr = '\0';
