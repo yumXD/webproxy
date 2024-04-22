@@ -32,6 +32,10 @@ void doit(int clientfd) {
     /* 요청 메소드, URI 읽기 */
     sscanf(request_buf, "%s %s", method, uri);
 
+    /* URI가 "/favicon.ico"인 경우에는 더 이상의 처리를 수행하지 않고 함수를 종료 */
+    if (!strcasecmp(uri, "/favicon.ico"))
+        return;
+    
     /* URI 파싱하여 호스트명, 포트, 경로 추출 */
     parse_uri(uri, hostname, port, path);
 
