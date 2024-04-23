@@ -150,6 +150,8 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    signal(SIGPIPE, SIG_IGN); // broken pipe 에러 해결용 코드 -프로세스 전체에 대한 시그널 핸들러 설정
+    
     listenfd = Open_listenfd(argv[1]); // 지정된 포트에서 수신 소켓을 생성
     while (1) {
         clientlen = sizeof(clientaddr);
