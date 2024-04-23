@@ -64,9 +64,10 @@ void doit(int clientfd) {
     }
 
     printf("%s\n", request_buf);
-    rio_writen(serverfd, request_buf, strlen(request_buf));
+    rio_writen(serverfd, request_buf, strlen(request_buf)); // 서버에 요청 전송
     Rio_readinitb(&response_rio, serverfd);
 
+    /* 서버로부터 응답 받아 클라이언트에 전송 */
     ssize_t n;
     /* 응답 헤더 보내기 */
     while ((n = Rio_readlineb(&response_rio, response_buf, MAX_OBJECT_SIZE)) > 0) {
