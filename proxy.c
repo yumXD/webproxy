@@ -78,6 +78,7 @@ void doit(int clientfd) {
 
     /* 응답 본문 보내기 */
     while ((n = Rio_readlineb(&response_rio, response_buf, MAX_OBJECT_SIZE)) > 0) {
+        usleep(3000); // 0.003초 
         rio_writen(clientfd, response_buf, n);
     }
 
